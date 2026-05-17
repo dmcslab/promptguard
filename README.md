@@ -21,7 +21,7 @@
 
 ## How It Works
 
-PromptGuard runs as a local FastAPI service. Claude Code's PreToolUse hook sends every tool call to PromptGuard before execution. The 8-stage pipeline inspects, classifies, redacts, and enforces policy — then returns a decision: allow, allow with redactions, quarantine, or block session.
+PromptGuard runs as a local FastAPI service. AI coding assistants send every tool call to PromptGuard via the PreToolUse hook (Claude Code), extension API, MCP gateway, or direct `/hook/pre-tool` call. The 8-stage pipeline inspects, classifies, redacts, and enforces policy — then returns a decision: allow, allow with redactions, quarantine, or block session.
 
 ```
                               ┌─────────────────────────────────────────────┐
