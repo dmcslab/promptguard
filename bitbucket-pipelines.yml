@@ -1,0 +1,167 @@
+# Bitbucket Pipelines — PromptGuard CI
+# Validates AI provider instruction files on push and pull requests.
+# Add this file to your repository root.
+#
+# Usage:
+#   1. Copy this file to bitbucket-pipelines.yml
+#   2. In Bitbucket, go to: Repository → Pipelines → Enable Pipeline
+#   3. The pipeline runs automatically on push/PR to main
+#
+# For private modules or self-hosted runners, see:
+#   https://support.atlassian.com/bitbucket-cloud/docs/configure-bitbucket-pipes/
+
+image: python:3.12
+
+clone:
+  depth: full
+
+pipelines:
+  default:
+    - step:
+        name: Validate instruction files
+        runs-on:
+          - "self.hosted"
+          - "standard"
+        script:
+          - export PIP_DISABLE_PIP_VERSION_CHECK=1
+          - pip install promptguard --quiet
+
+          # Find instruction files
+          - |
+            INSTR_FILES=$(find . \( \
+              -name "CLAUDE.md" -o \
+              -name ".claude/CLAUDE.md" -o \
+              -name ".github/copilot-instructions.md" -o \
+              -name ".cursorrules" -o \
+              -name ".cursor/rules.md" -o \
+              -name ".continuerc.json" -o \
+              -name ".continue/config.json" -o \
+              -name ".codeium/instructions.md" -o \
+              -name ".windsurf/rules.md" \
+              \) -not -path '*/.git/*' 2>/dev/null | sort | head -20)
+            echo "Files found: $INSTR_FILES"
+
+          # Validate each instruction file
+          - |
+            set +e
+            ERRORS=0
+            for file in $INSTR_FILES; do
+              case "$file" in
+                *cursorrules*|*cursor/rules*) PROVIDER=cursor ;;
+                *copilot-instructions*) PROVIDER=copilot ;;
+                *continuerc*|*continue/config*) PROVIDER=continue ;;
+                *codeium/instructions*) PROVIDER=codeium ;;
+                *windsurf*) PROVIDER=windsurf ;;
+                *) PROVIDER=claude_code ;;
+              esac
+
+              echo ""
+              echo "=== Validating: $file (provider: $PROVIDER) ==="
+              RESULT=$(promptguard validate-file --file "$file" --provider "$PROVIDER" 2>&1)
+              echo "$RESULT"
+
+              if echo "$RESULT" | grep -qE "BLOCK_SESSION|QUARANTINE"; then
+                echo "❌ BLOCKED: $file"
+                ERRORS=$((ERRORS + 1))
+              elif echo "$RESULT" | grep -qE "VALIDATION_ERROR|PARSER_ERROR|ERROR"; then
+                echo "❌ ERROR: $file"
+                ERRORS=$((ERRORS + 1))
+              else
+                echo "✓ Passed: $file"
+              fi
+            done
+
+            if [ $ERRORS -gt 0 ]; then
+              echo ""
+              echo "❌ $ERRORS file(s) failed validation"
+              exit 1
+            fi
+            set -e
+
+          # Report if no instruction files found
+          - |
+            if [ -z "$INSTR_FILES" ]; then
+              echo "No instruction files found — nothing to validate"
+            fi
+
+    - step:
+        name: Validate Claude Code hooks
+        runs-on:
+          - "self.hosted"
+          - "standard"
+        script:
+          - if [ -f .claude/settings.json ]; then
+              echo "Claude Code hooks found:"
+              cat .claude/settings.json
+              if grep -q "127.0.0.1:7474\|localhost:7474" .claude/settings.json; then
+                echo "✓ Hooks reference PromptGuard (127.0.0.1:7474)"
+              else
+                echo "⚠ Hooks found but do not reference PromptGuard"
+              fi
+            else
+              echo "No .claude/settings.json found — Claude Code hooks not configured"
+            fi
+
+    - step:
+        name: PromptGuard service health
+        runs-on:
+          - "self.hosted"
+          - "standard"
+        script:
+          - pip install promptguard --quiet
+          - promptguard --help > /dev/null 2>&1 && echo "✓ PromptGuard CLI installed"
+          - |
+            if [ -f .promptguard.yaml ]; then
+              timeout 5 promptguard serve &
+              PID=$!
+              sleep 3
+              if curl -s --fail http://127.0.0.1:7474/health 2>/dev/null | grep -q ok; then
+                echo "✓ PromptGuard service responds on /health"
+              else
+                echo "⚠ PromptGuard service /health check did not respond as expected"
+              fi
+              kill $PID 2>/dev/null || true
+            else
+              echo "No .promptguard.yaml found — skipping service health check"
+            fi
+
+  pull-requests:
+    "**":
+      - step:
+          name: Validate on pull requests
+          runs-on:
+            - "self.hosted"
+            - "standard"
+          script:
+            - export PIP_DISABLE_PIP_VERSION_CHECK=1
+            - pip install promptguard --quiet
+            - |
+              INSTR_FILES=$(find . \( \
+                -name "CLAUDE.md" -o \
+                -name ".claude/CLAUDE.md" -o \
+                -name ".github/copilot-instructions.md" -o \
+                -name ".cursorrules" -o \
+                -name ".cursor/rules.md" -o \
+                -name ".continuerc.json" -o \
+                -name ".continue/config.json" -o \
+                -name ".codeium/instructions.md" -o \
+                -name ".windsurf/rules.md" \
+                \) -not -path '*/.git/*' 2>/dev/null | sort)
+              echo "Validating PR instruction files: $INSTR_FILES"
+              for file in $INSTR_FILES; do
+                case "$file" in
+                  *cursorrules*|*cursor/rules*) PROVIDER=cursor ;;
+                  *copilot-instructions*) PROVIDER=copilot ;;
+                  *continuerc*|*continue/config*) PROVIDER=continue ;;
+                  *codeium/instructions*) PROVIDER=codeium ;;
+                  *windsurf*) PROVIDER=windsurf ;;
+                  *) PROVIDER=claude_code ;;
+                esac
+                RESULT=$(promptguard validate-file --file "$file" --provider "$PROVIDER" 2>&1)
+                echo "=== $file (provider: $PROVIDER) ==="
+                echo "$RESULT"
+                if echo "$RESULT" | grep -qE "BLOCK_SESSION|QUARANTINE"; then
+                  echo "❌ BLOCKED: $file"
+                  exit 1
+                fi
+              done

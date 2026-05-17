@@ -1,0 +1,139 @@
+{
+  "name": "promptguard",
+  "displayName": "PromptGuard",
+  "description": "Provider-agnostic prompt security layer for Claude Code, GitHub Copilot, Continue, Cursor, and Codeium",
+  "version": "0.2.0",
+  "publisher": "dmcslab",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["AI", "Linters", "Other"],
+  "keywords": ["ai", "security", "guardrails", "copilot", "claude", "cursor", "continue"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        { "id": "promptguardSettings", "name": "PromptGuard Settings", "icon": "resources/shield.svg" }
+      ]
+    },
+    "commands": [
+      { "command": "promptguard.openPanel",             "title": "PromptGuard: Open Panel",                    "icon": "$(shield)" },
+      { "command": "promptguard.askAIWithSelection",     "title": "PromptGuard: Ask AI About Selection" },
+      { "command": "promptguard.scanWorkspace",          "title": "PromptGuard: Scan Workspace Instruction Files" },
+      { "command": "promptguard.validateCurrentFile",    "title": "PromptGuard: Validate Current File" },
+      { "command": "promptguard.installClaudeHooks",     "title": "PromptGuard: Install Claude Code Hooks" },
+      { "command": "promptguard.reloadPolicy",           "title": "PromptGuard: Reload Policy Rules" },
+      { "command": "promptguard.auditStats",             "title": "PromptGuard: Show Audit Stats" },
+      { "command": "promptguard.showServiceLog",         "title": "PromptGuard: Show Service Log" },
+      { "command": "promptguard.restartService",         "title": "PromptGuard: Restart Service" },
+      { "command": "promptguard.signingStatus",          "title": "PromptGuard: Show Policy Signing Status" },
+      { "command": "promptguard.toggleFailClosed",       "title": "PromptGuard: Toggle Fail Closed" },
+      { "command": "promptguard.toggleProvider",          "title": "PromptGuard: Toggle Provider" },
+      { "command": "promptguard.openSettings",           "title": "PromptGuard: Open Settings" }
+    ],
+    "menus": {
+      "editor/context": [
+        { "command": "promptguard.askAIWithSelection", "when": "editorHasSelection", "group": "promptguard" },
+        { "command": "promptguard.validateCurrentFile", "when": "resourceFilename =~ /CLAUDE\\.md|copilot-instructions\\.md|\\.cursorrules|\\.continuerc/", "group": "promptguard" }
+      ],
+      "editor/title": [
+        { "command": "promptguard.openPanel", "group": "navigation" }
+      ]
+    },
+    "configuration": {
+      "title": "PromptGuard",
+      "properties": {
+        "promptguard.port": {
+          "type": "number", "default": 7474,
+          "description": "Port for the PromptGuard local service"
+        },
+        "promptguard.pythonPath": {
+          "type": "string", "default": "",
+          "description": "Path to Python 3.11+ executable (auto-detected if blank)"
+        },
+        "promptguard.configPath": {
+          "type": "string", "default": "",
+          "description": "Path to .promptguard.yaml (uses project root or home dir if blank)"
+        },
+        "promptguard.anthropicApiKey": {
+          "type": "string", "default": "",
+          "description": "Anthropic API key (or set ANTHROPIC_API_KEY env var)"
+        },
+        "promptguard.openaiApiKey": {
+          "type": "string", "default": "",
+          "description": "OpenAI / GitHub Copilot API key (or set OPENAI_API_KEY env var)"
+        },
+        "promptguard.defaultProvider": {
+          "type": "string",
+          "enum": ["claude_code", "github_copilot", "continue_dev", "cursor", "codeium", "generic"],
+          "default": "generic",
+          "description": "Default AI provider for the prompt panel"
+        },
+        "promptguard.streamResponses": {
+          "type": "boolean", "default": true,
+          "description": "Stream AI responses token-by-token"
+        },
+        "promptguard.autoScanOnOpen": {
+          "type": "boolean", "default": true,
+          "description": "Automatically scan instruction files when workspace opens"
+        },
+        "promptguard.showViolationDecorations": {
+          "type": "boolean", "default": true,
+          "description": "Show inline violation decorations in editor gutter"
+        },
+        "promptguard.serviceUrl": {
+          "type": "string",
+          "default": "http://localhost:7474",
+          "description": "URL of the PromptGuard service"
+        },
+        "promptguard.failClosed": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, any guardrail trigger blocks the request. When disabled, only logs/warns."
+        },
+        "promptguard.providers": {
+          "type": "object",
+          "default": {},
+          "description": "Per-provider enable/disable for guardrails",
+          "properties": {
+            "claudeCode": { "type": "boolean", "default": true },
+            "copilot": { "type": "boolean", "default": true },
+            "cursor": { "type": "boolean", "default": true },
+            "continue": { "type": "boolean", "default": true },
+            "codeium": { "type": "boolean", "default": true }
+          }
+        },
+        "promptguard.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "X-PromptGuard-API-Key (if auth is enabled on the service)"
+        },
+        "promptguard.configUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Remote config URL (PROMPTGUARD_CONFIG_URL) — for VDI session injection"
+        },
+        "promptguard.configInline": {
+          "type": "string",
+          "default": "",
+          "description": "Inline YAML config (PROMPTGUARD_CONFIG_INLINE) — for VDI session injection"
+        },
+        "promptguard.sessionId": {
+          "type": "string",
+          "default": "",
+          "description": "Session ID (PROMPTGUARD_SESSION_ID) — for VDI per-session tracking"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0",
+    "@vscode/vsce": "^2.24.0"
+  }
+}
