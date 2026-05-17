@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/promptguard-banner.svg" alt="PromptGuard — Prompt Security for AI Coding Assistants" width="900"/>
+  <img src="docs/promptguard-banner-1280.svg" alt="PromptGuard — Prompt Security for AI Coding Assistants" width="1280"/>
 </p>
 
 <p align="center">
