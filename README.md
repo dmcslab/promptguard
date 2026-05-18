@@ -571,6 +571,10 @@ PromptGuard detects a well-known class of prompt injection attacks sometimes cal
 
 ---
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history and change log.
+
 ## License
 
 See [LICENSE](LICENSE) for the full text.
