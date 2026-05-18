@@ -848,4 +848,3 @@ Regex alone stops ~90% of automated/script-kiddie attacks. These require semanti
 ---
 
 *Last updated: May 2026 | For PromptGuard v0.2+ rule development | dmcslab*  
-*Add new patterns to this file and cross-reference in `.promptguard.yaml` rule_id comments.*
